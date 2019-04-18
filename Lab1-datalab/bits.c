@@ -238,9 +238,17 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  int isxTmin = !(x^((~0)<<31));
-  int isyTmax = !(y^(~(1<<31))) ;
-  return   isxTmin | isyTmax |(!( (y + (~x + 1)) >> 31)) ;
+  /* 
+  if  y < 0, x >= 0, return 0
+  else:
+  if y>= 0, x<0, return 1
+  else:
+     y and x have same symbol, use y - x to check
+  */
+  int yMinXPosChecker =  (!(x >> 31)) & ( !!( y >> 31)) ;
+  int yPosXMinChecker =  (!(y >> 31)) & ( !!( x >> 31)) ;
+  int yminxChecker = !( (y + (~x + 1)) >> 31);
+  return   (!yMinXPosChecker) & (yPosXMinChecker | yminxChecker);
 }
 //4
 /* 
