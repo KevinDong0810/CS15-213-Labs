@@ -143,7 +143,9 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  // a | b : ~(~a & ~b) ; a Xor b : (~a & b) | (a & ~b)
+  int res = ~( ~(~x & y) & ~(x & ~y));
+  return res;
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -152,8 +154,10 @@ int bitXor(int x, int y) {
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
+  int res = 0;
+  res = ~res;
+  res <<= 31;
+  return res;
 
 }
 //2
@@ -165,7 +169,9 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+  int checker = x + 1;
+  int res = ( !~(checker ^ x) ) & ( ~!~x );
+  return res;
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +182,13 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  int atom = 85; // 01010101 (2)
+  int checker = atom;
+  checker |= (atom << 8);
+  checker |= (atom << 16);
+  checker |= (atom << 24);
+  int res = !~(checker | x);
+  return res;
 }
 /* 
  * negate - return -x 
@@ -186,7 +198,8 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  int res = ~x + 1;
+  return res;
 }
 //3
 /* 
@@ -199,8 +212,13 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  int lowBound = 0x30, highBound = 0x39;
+  int lowBoundChecker =    (x + (~lowBound + 1) ) >> 31 ;
+  int highBoundChecker =   (highBound + (~x + 1) ) >> 31 ;
+  int res = ! ( lowBoundChecker | highBoundChecker );
+  return res;
 }
+
 /* 
  * conditional - same as x ? y : z 
  *   Example: conditional(2,4,5) = 4
@@ -209,7 +227,8 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  int res =  ~ (  ( (((!x) << 31) >> 31) | y ) ^ ( (((!!x) << 31) >> 31) | z ) ) ;
+  return res;
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -219,7 +238,9 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  int isxTmin = !(x^((~0)<<31));
+  int isyTmax = !(y^(~(1<<31))) ;
+  return   isxTmin | isyTmax |(!( (y + (~x + 1)) >> 31)) ;
 }
 //4
 /* 
