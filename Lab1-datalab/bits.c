@@ -184,10 +184,11 @@ int isTmax(int x) {
 int allOddBits(int x) {
   int atom = 85; // 01010101 (2)
   int checker = atom;
+  int res = 0;
   checker |= (atom << 8);
   checker |= (atom << 16);
   checker |= (atom << 24);
-  int res = !~(checker | x);
+  res = !~(checker | x);
   return res;
 }
 /* 
@@ -224,7 +225,7 @@ int isAsciiDigit(int x) {
  *   Example: conditional(2,4,5) = 4
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 16
- *   Rating: 3
+ *   Rating: 3 
  */
 int conditional(int x, int y, int z) {
   int res =  ~ (  ( (((!x) << 31) >> 31) | y ) ^ ( (((!!x) << 31) >> 31) | z ) ) ;
@@ -244,6 +245,7 @@ int isLessOrEqual(int x, int y) {
   if y>= 0, x<0, return 1
   else:
      y and x have same symbol, use y - x to check
+  The tricky part here is that if y and x has different signal, y -x may exceed the bound. 
   */
   int yMinXPosChecker =  (!(x >> 31)) & ( !!( y >> 31)) ;
   int yPosXMinChecker =  (!(y >> 31)) & ( !!( x >> 31)) ;
@@ -275,7 +277,38 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  int is_zero = 0;
+  int zeroNumber = 0; // this represents: starting from the first bit, how many consecutive bits are zeros
+  int Checker = 0; // convert x to -x - 1, e.g. -8 -> 7, -4 -> 3, since they require the same bit
+
+  x = x ^ (x >> 31);
+  Checker = x >> 16;
+  Checker = !Checker;
+  zeroNumber += (Checker << 4)&16;
+
+  Checker = x >> (24 + (~zeroNumber + 1 ));
+  Checker = ! Checker;
+  zeroNumber += (Checker << 3)&8;
+
+  Checker = x >> (28 + (~zeroNumber + 1 ));
+  Checker = !Checker;
+  zeroNumber += (Checker << 2)&4;
+
+  Checker = x >> (30 + (~zeroNumber + 1 ));
+  Checker = !Checker;
+  zeroNumber += (Checker << 1) & 2;
+
+  Checker = x >> (31 + (~zeroNumber + 1 ));
+  Checker = !Checker;
+  zeroNumber += Checker & 1;
+
+  is_zero = !(x | 0);
+  is_zero |= is_zero << 1;
+  is_zero |= is_zero << 2;
+  is_zero |= is_zero << 4;
+  is_zero |= is_zero << 8;
+  is_zero |= is_zero << 16;
+  return ((32 + (~zeroNumber + 1 ) + 1) & ~is_zero) | (is_zero & 1);
 }
 //float
 /* 
@@ -288,9 +321,33 @@ int howManyBits(int x) {
  *   Legal ops: Any integer/unsigned operations incl. ||, &&. also if, while
  *   Max ops: 30
  *   Rating: 4
- */
+ */ 
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  /*
+  get the exp and mag;
+  check whether its nan
+  left shift mag, if overflow, add 1 to the exp
+  */
+  unsigned sign = uf & (1 << 31);
+  unsigned exp = (uf << 1) >> 24 ; // unsigned int right shift is always filled with 0
+  unsigned mag = (uf << 9) >> 9;
+  unsigned sign_mag = 0;
+
+  if (!(exp + (~255 + 1) ) ) { // argument is NaN or INF
+    return uf;
+  }
+
+  else if ( !exp ) // denormarlizing number, left shift the mag and consider the overflow
+  {
+    sign_mag = !!(mag & (1 << 22)) ;
+    exp += sign_mag; 
+    mag = mag << 1;
+    return sign | (exp << 23) | mag;
+  }
+  else{ // common case, increase exp by 1
+    exp += 1;
+    return sign | (exp << 23) | mag ;
+  }
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -304,8 +361,36 @@ unsigned floatScale2(unsigned uf) {
  *   Max ops: 30
  *   Rating: 4
  */
-int floatFloat2Int(unsigned uf) {
-  return 2;
+int floatFloat2Int(unsigned uf){
+  unsigned sign = uf & (1 << 31);
+  unsigned exp = (uf << 1) >> 24 ; // unsigned int right shift is always filled with 0
+  unsigned mag = (uf << 9) >> 9;
+  int exp_value = 0;
+  int bias = (1 << 7) - 1;
+  int shift_num = 0;
+
+  if (!(exp + (~255 + 1) ) ) { // argument is NaN or INF
+    return 0x80000000u;
+  }
+  else if ( !exp ) // denormarlizing number, return zero
+  {
+    return 0;
+  }
+  else{ // normarlizing number
+    exp_value = exp + (~bias + 1);
+    if (!!(exp_value >> 31)) { // exp_value smaller than 0
+      return 0;
+    }
+    else if ( !( (exp_value + (~23 + 1)) >> 31) ) { // exp_value larger than 23
+      return uf;
+    }
+    else{
+      shift_num = 23 + (~exp_value + 1);
+      mag = ( mag >> shift_num ) << shift_num;
+      return sign | exp | mag;
+    }
+  }
+
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
