@@ -262,7 +262,11 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  int negChecker = ~(x >> 31) ; // if x >= 0, this equals to 111...1, otherwise it equals to 000...0. 
+  int temp = (x >> 31) +  (~x + 1);
+  int posChecker = ~(temp >> 31); // if x ==0, this equals to 111...1, if x > 0, it equals to 000...0, if x < 0, it equals to 111...1.
+  int res =  negChecker & posChecker & 1;
+  return res;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -279,9 +283,9 @@ int logicalNeg(int x) {
 int howManyBits(int x) {
   int is_zero = 0;
   int zeroNumber = 0; // this represents: starting from the first bit, how many consecutive bits are zeros
-  int Checker = 0; // convert x to -x - 1, e.g. -8 -> 7, -4 -> 3, since they require the same bit
+  int Checker = 0; 
 
-  x = x ^ (x >> 31);
+  x = x ^ (x >> 31); // convert x to -x - 1, e.g. -8 -> 7, -4 -> 3, since they require the same bit
   Checker = x >> 16;
   Checker = !Checker;
   zeroNumber += (Checker << 4)&16;
@@ -363,33 +367,29 @@ unsigned floatScale2(unsigned uf) {
  */
 int floatFloat2Int(unsigned uf){
   unsigned sign = uf & (1 << 31);
-  unsigned exp = (uf << 1) >> 24 ; // unsigned int right shift is always filled with 0
-  unsigned mag = (uf << 9) >> 9;
-  int exp_value = 0;
-  int bias = (1 << 7) - 1;
-  int shift_num = 0;
+  unsigned exp = (uf << 1) >> 24 ; 
+  unsigned frac = ( (uf << 9) >> 9 ) | ( 1 << 23); 
 
-  if (!(exp + (~255 + 1) ) ) { // argument is NaN or INF
+  int bias = (1 << 7) - 1;
+  int exp_value = exp + (~bias + 1);
+  int result = 0;
+
+  if (exp_value > 31) { // out of limit
     return 0x80000000u;
   }
-  else if ( !exp ) // denormarlizing number, return zero
+  else if ( exp_value < 0 ) // smaller than 1
   {
     return 0;
   }
-  else{ // normarlizing number
-    exp_value = exp + (~bias + 1);
-    if (!!(exp_value >> 31)) { // exp_value smaller than 0
-      return 0;
+  else{ 
+    if (exp_value <= 23){
+      result = frac >> (23 - exp_value) ;
+    }else{
+      result = frac << (exp_value - 23);
     }
-    else if ( !( (exp_value + (~23 + 1)) >> 31) ) { // exp_value larger than 23
-      return uf;
+    if (sign) result = ~result + 1;
+    return result;
     }
-    else{
-      shift_num = 23 + (~exp_value + 1);
-      mag = ( mag >> shift_num ) << shift_num;
-      return sign | exp | mag;
-    }
-  }
 
 }
 /* 
@@ -406,5 +406,15 @@ int floatFloat2Int(unsigned uf){
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+    unsigned exp = 0;
+    unsigned frac = 0;
+    if (x >= 129) return  255 << 23; // 129 = 2^8 - 127 + 1
+    else if (x < -149) return 0; // -149 = -23 + (1 - 127) denormarlizing
+    else{
+      if (x >= -126) exp = 127 + x;
+      else{
+        frac = 1 << (23 - x - 126);
+      }
+    }
+    return exp << 23 | frac;
 }
