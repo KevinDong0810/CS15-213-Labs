@@ -21,6 +21,9 @@ tracegen: tracegen.c trans.o cachelab.c
 trans.o: trans.c
 	$(CC) $(CFLAGS) -O0 -c trans.c
 
+test: test.c
+	$(CC) $(CFLAGS) -o test test.c 
+
 #
 # Clean the src dirctory
 #
@@ -28,6 +31,7 @@ clean:
 	rm -rf *.o
 	rm -f *.tar
 	rm -f csim
+	rm -f test
 	rm -f test-trans tracegen
 	rm -f trace.all trace.f*
 	rm -f .csim_results .marker
