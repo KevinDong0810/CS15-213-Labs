@@ -19,35 +19,77 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
  *     searches for that string to identify the transpose function to
  *     be graded. 
  */
+
+/*
+Why diagonal: Because the same row in A and B is stored in the same set. When we are visiting the diagonal element, we will need the same row of A and B. 
+Block size choice: No idea yet
+*/
 char transpose_submit_desc[] = "Transpose submission";
-void transpose_submit(int M, int N, int A[N][M], int B[M][N]){
-    int bsize;
-    int flag_reverse = 0;
-    if (M == 32){
-        bsize = 8;
-    }else{
-        bsize = 4;
-    }
-    int en_M = bsize * (M / bsize);
-    int en_N = bsize * (N / bsize);
-    int mm, nn, i, j;
-    for (mm = 0; mm < en_M; mm+= bsize){
-        for (nn = 0; nn < en_N; nn += bsize){
-            for (i = mm; i < mm + bsize; ++i){
-                if (!flag_reverse){
-                    for (j = nn; j < nn + bsize; ++ j){
-                    B[i][j] = A[j][i];
+void transpose_submit(int M, int N, int A[N][M], int B[M][N])
+{
+    int i,j,tmp,index;
+    int row_Block,col_Block;
+    if(M==32)
+    {   //separate the the 32X32 block into 8X8 , decrease the number of misses
+        for(row_Block = 0;row_Block < N ;row_Block+=8){
+            for(col_Block =0 ;col_Block < M; col_Block+=8){
+                for(i=row_Block ; i<row_Block+8;i++){
+                    for(j=col_Block;j<col_Block+8;j++){
+                        if(i!=j){
+                            B[j][i] = A[i][j];
+                        }else{
+                            tmp = A[i][j];                  //i==j means is the diagonal. if we set B right now ,the  misses and evictions will increase . because the cache set of B is same to A.
+                            index = i;
+                        }
                     }
-                }else{
-                    for (j = nn + bsize - 1; j > nn - 1; -- j){
-                    B[i][j] = A[j][i];
+                    if(col_Block == row_Block){             //just set B on the diagonal. other than shouldn't set the B
+                        B[index][index] = tmp;
                     }
                 }
-                flag_reverse = !flag_reverse;
             }
         }
     }
+    else if(M==64)
+    {
+         //separate the the 32X32 block into 8X8 , decrease the number of misses
+        for(row_Block = 0;row_Block < N ;row_Block+=4){
+            for(col_Block =0 ;col_Block < M; col_Block+=4){
+                for(i=row_Block ; i<row_Block+4;i++){
+                    for(j=col_Block;j<col_Block+4;j++){
+                        if(i!=j){
+                            B[j][i] = A[i][j];
+                        }else{
+                            tmp = A[i][j];                  //i==j means is the diagonal. if we set B right now ,the  misses and evictions will increase . because the cache set of B is same to A.
+                            index = i;
+                        }
+                    }
+                    if(col_Block == row_Block){             //just set B on the diagonal. other than shouldn't set the B
+                        B[index][index] = tmp;
+                    }
+                }
+            }
+        }
+    }else{
+        //separate the the 32X32 block into 8X8 , decrease the number of misses
+        for(row_Block = 0;row_Block < N ;row_Block+=16){
+            for(col_Block =0 ;col_Block < M; col_Block+=16){
+                for(i=row_Block ; i<row_Block+16 && (i<N);i++){
+                    for(j=col_Block;j<col_Block+16 &&(j<M);j++){
+                        if(i!=j){
+                            B[j][i] = A[i][j];
+                        }else{
+                            tmp = A[i][j];                  //i==j means is the diagonal. if we set B right now ,the  misses and evictions will increase . because the cache set of B is same to A.
+                            index = i;
+                        }
+                    }
+                    if(col_Block == row_Block){             //just set B on the diagonal. other than shouldn't set the B
+                        B[index][index] = tmp;
+                    }
+                }
+            }
+        }
 
+    }
 }
 
 /* 
